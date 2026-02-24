@@ -209,75 +209,31 @@ st.plotly_chart(fig, use_container_width=True)
 # LEARNING PANEL
 # =====================================================
 st.divider()
-st.header("📚 Understanding the Mathematics")
+st.header("📚 How the Portfolio Math Works")
 
 with st.expander("Returns"):
-    st.markdown(r"""
-Single-period return:
-
-\[
-R_t = \frac{P_t - P_{t-1}}{P_{t-1}}
-\]
-
-Arithmetic annual return:
-
-\[
-E[R] = \bar{R} \times \text{periods per year}
-\]
-
-Geometric return (CAGR):
-
-\[
-CAGR = \left(\frac{P_T}{P_0}\right)^{1/T} - 1
-\]
-""")
+    st.latex(r"R_t = \frac{P_t - P_{t-1}}{P_{t-1}}")
+    st.latex(r"E[R] = \bar{R} \times \text{periods per year}")
+    st.latex(r"CAGR = \left(\frac{P_T}{P_0}\right)^{1/T} - 1")
+    st.write("Arithmetic return is used in optimisation. CAGR is real investor return.")
 
 with st.expander("Volatility"):
-    st.markdown(r"""
-Volatility = standard deviation of returns
-
-\[
-\sigma = \sqrt{Var(R)}
-\]
-
-Annualised:
-
-\[
-\sigma_{annual} = \sigma_{period} \times \sqrt{\text{periods per year}}
-\]
-""")
+    st.latex(r"\sigma = \sqrt{Var(R)}")
+    st.latex(r"\sigma_{annual} = \sigma_{period}\sqrt{\text{periods per year}}")
+    vol = returns.std()*np.sqrt(periods_per_year)
+    st.dataframe(vol.to_frame("Volatility"))
 
 with st.expander("Variance & Covariance"):
-    st.markdown(r"""
-Covariance matrix:
-
-\[
-\Sigma = Cov(R_i, R_j)
-\]
-
-Portfolio variance:
-
-\[
-\sigma_p^2 = w^T \Sigma w
-\]
-""")
-    st.dataframe(pd.DataFrame(cov_mat, index=tickers, columns=tickers))
+    st.latex(r"\Sigma = Cov(R_i,R_j)")
+    st.latex(r"\sigma_p^2 = w^T\Sigma w")
+    st.dataframe(pd.DataFrame(cov_mat,index=tickers,columns=tickers))
 
 with st.expander("Correlation"):
     corr = returns.corr()
     st.dataframe(corr)
 
-with st.expander("Portfolio Formulas"):
-    st.markdown(r"""
-Portfolio return:
+with st.expander("Portfolio formulas"):
+    st.latex(r"R_p = \sum w_iR_i")
+    st.latex(r"\sigma_p = \sqrt{w^T\Sigma w}")
+    st.write("Diversification reduces risk when correlations are low.")
 
-\[
-R_p = \sum w_i R_i
-\]
-
-Portfolio volatility:
-
-\[
-\sigma_p = \sqrt{w^T \Sigma w}
-\]
-""")
