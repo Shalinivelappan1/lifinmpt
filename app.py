@@ -9,19 +9,18 @@ from scipy.optimize import minimize
 st.set_page_config(page_title="Markowitz Portfolio Lab", layout="wide")
 
 # ===============================
-# SIDEBAR INPUTS
+# SIDEBAR
 # ===============================
 st.sidebar.header("Inputs")
 
 uploaded = st.sidebar.file_uploader("Upload adjusted close CSV", type=["csv"])
 rf = st.sidebar.number_input("Risk-free rate (annual)", 0.0, 0.5, 0.06, 0.005)
-long_only = st.sidebar.checkbox("Long-only (no short selling)", True)
-trading_days = st.sidebar.number_input("Trading days per year", 200, 365, 252, 1)
-num_pts = st.sidebar.slider("Frontier points", 20, 150, 60, 5)
-top_hold = st.sidebar.slider("Top holdings to display", 5, 30, 10, 1)
+long_only = st.sidebar.checkbox("Long-only", True)
+num_pts = st.sidebar.slider("Frontier points", 20, 150, 60)
+top_hold = st.sidebar.slider("Top holdings", 5, 30, 10)
 
 st.title("📊 Mean–Variance Portfolio Lab (Markowitz)")
-st.caption("Designed by Prof. Shalini Velappan, IIM Trichy.")
+st.caption("Designed by Prof. Shalini Velappan, IIM Trichy")
 
 # ===============================
 # LOAD DATA
@@ -33,32 +32,42 @@ def load_prices(file):
     return df
 
 if uploaded is None:
-    st.warning("Upload a CSV of adjusted closing prices to begin.")
+    st.warning("Upload CSV to begin")
     st.stop()
 
 prices = load_prices(uploaded)
 
-returns = prices.pct_change().dropna(how="all")
-returns = returns.dropna(axis=1, how="all")
-
+returns = prices.pct_change().dropna()
 tickers = returns.columns.tolist()
 n = len(tickers)
 
 # ===============================
+# AUTO DETECT DATA FREQUENCY
+# ===============================
+date_diffs = prices.index.to_series().diff().dropna()
+avg_days = date_diffs.dt.days.mean()
+
+if avg_days > 25:
+    periods_per_year = 12
+    freq_label = "Monthly data detected"
+else:
+    periods_per_year = 252
+    freq_label = "Daily data detected"
+
+st.sidebar.info(freq_label)
+
+# ===============================
 # EXPECTED RETURNS
 # ===============================
-
-# Arithmetic mean (Markowitz)
 mu_daily = returns.mean()
-mu = mu_daily * trading_days
+mu = mu_daily * periods_per_year
 mu_vec = mu.values
 
-# ===== Geometric (CAGR) =====
+# ===== Geometric CAGR =====
 clean_prices = prices[tickers].dropna()
 
 total_years = (clean_prices.index[-1] - clean_prices.index[0]).days / 365.25
 cagr = (clean_prices.iloc[-1] / clean_prices.iloc[0]) ** (1 / total_years) - 1
-
 geo_vec = cagr.values
 
 # ===============================
@@ -68,9 +77,9 @@ clean_returns = returns.dropna()
 
 try:
     lw = LedoitWolf().fit(clean_returns.values)
-    cov_mat = lw.covariance_ * trading_days
+    cov_mat = lw.covariance_ * periods_per_year
 except:
-    cov_mat = clean_returns.cov().values * trading_days
+    cov_mat = clean_returns.cov().values * periods_per_year
 
 # ensure positive definite
 eigmin = np.linalg.eigvalsh(cov_mat).min()
@@ -80,8 +89,8 @@ if eigmin <= 1e-10:
 # ===============================
 # OPTIMIZATION
 # ===============================
-bounds = None if not long_only else tuple((0.0, 1.0) for _ in range(n))
-cons_sum = {'type': 'eq', 'fun': lambda w: np.sum(w) - 1.0}
+bounds = None if not long_only else tuple((0,1) for _ in range(n))
+cons = {'type':'eq','fun': lambda w: np.sum(w)-1}
 
 def port_return(w):
     return float(w @ mu_vec)
@@ -89,45 +98,36 @@ def port_return(w):
 def port_vol(w):
     return float(np.sqrt(w.T @ cov_mat @ w))
 
-def min_var_portfolio():
-    x0 = np.repeat(1.0/n, n)
-    res = minimize(lambda w: float(w.T @ cov_mat @ w),
-                   x0, method='SLSQP',
-                   bounds=bounds,
-                   constraints=(cons_sum,))
+def min_var():
+    x0 = np.repeat(1/n, n)
+    res = minimize(lambda w: w.T@cov_mat@w, x0,
+                   bounds=bounds,constraints=cons)
     return res.x
 
-def max_sharpe_portfolio():
+def max_sharpe():
     def neg_sharpe(w):
         v = port_vol(w)
-        return - (port_return(w) - rf) / v if v > 0 else 1e9
-
-    x0 = np.repeat(1.0/n, n)
-    res = minimize(neg_sharpe,
-                   x0, method='SLSQP',
-                   bounds=bounds,
-                   constraints=(cons_sum,))
+        return -(port_return(w)-rf)/v if v>0 else 1e9
+    x0 = np.repeat(1/n, n)
+    res = minimize(neg_sharpe, x0,
+                   bounds=bounds,constraints=cons)
     return res.x
 
-def min_var_for_target(target):
-    cons = (cons_sum,
-            {'type':'eq', 'fun': lambda w: port_return(w) - target})
-
-    x0 = np.repeat(1.0/n, n)
-    res = minimize(lambda w: float(w.T @ cov_mat @ w),
-                   x0, method='SLSQP',
-                   bounds=bounds,
-                   constraints=cons)
+def frontier_for_target(target):
+    cons2 = (cons, {'type':'eq','fun':lambda w: port_return(w)-target})
+    x0 = np.repeat(1/n, n)
+    res = minimize(lambda w: w.T@cov_mat@w, x0,
+                   bounds=bounds,constraints=cons2)
     return res.x if res.success else None
 
 # ===============================
-# RUN OPTIMIZATION
+# RUN
 # ===============================
-w_mv = min_var_portfolio()
-w_ms = max_sharpe_portfolio()
+w_mv = min_var()
+w_ms = max_sharpe()
 
-r_mv, v_mv = port_return(w_mv), port_vol(w_mv)
-r_ms, v_ms = port_return(w_ms), port_vol(w_ms)
+r_mv,v_mv = port_return(w_mv), port_vol(w_mv)
+r_ms,v_ms = port_return(w_ms), port_vol(w_ms)
 
 geo_r_mv = float(w_mv @ geo_vec)
 geo_r_ms = float(w_ms @ geo_vec)
@@ -137,19 +137,19 @@ geo_r_ms = float(w_ms @ geo_vec)
 # ===============================
 targets = np.linspace(min(mu_vec), max(mu_vec), num_pts)
 
-frontier_rs, frontier_vs, frontier_ws = [], [], []
+frontier_rs, frontier_vs, frontier_ws = [],[],[]
 
 for t in targets:
-    w = min_var_for_target(t)
+    w = frontier_for_target(t)
     if w is not None:
         frontier_ws.append(w)
         frontier_rs.append(port_return(w))
         frontier_vs.append(port_vol(w))
 
 # ===============================
-# DISPLAY
+# DISPLAY METRICS
 # ===============================
-col1, col2 = st.columns(2)
+col1,col2 = st.columns(2)
 
 with col1:
     st.subheader("🌍 Global Minimum Variance")
@@ -158,55 +158,64 @@ with col1:
     st.metric("Volatility", f"{v_mv:.2%}")
 
 with col2:
-    sharpe = (r_ms - rf)/v_ms
+    sharpe = (r_ms-rf)/v_ms
     st.subheader("⭐ Tangency Portfolio")
     st.metric("Return (Arithmetic)", f"{r_ms:.2%}")
     st.metric("Return (Geometric)", f"{geo_r_ms:.2%}")
     st.metric("Volatility", f"{v_ms:.2%}")
     st.metric("Sharpe", f"{sharpe:.2f}")
 
+st.info("""
+Arithmetic return = used in optimization  
+Geometric return = CAGR (realistic investor return)
+""")
+
 # ===============================
 # PLOT
 # ===============================
-fig = make_subplots(rows=1, cols=2,
-                    column_widths=[0.6, 0.4],
-                    specs=[[{"type":"scatter"}, {"type":"bar"}]])
+fig = make_subplots(rows=1,cols=2,
+                    column_widths=[0.6,0.4],
+                    specs=[[{"type":"scatter"},{"type":"bar"}]])
 
-fig.add_trace(go.Scatter(x=frontier_vs, y=frontier_rs,
-                         mode='lines', name='Frontier'), row=1, col=1)
+fig.add_trace(go.Scatter(x=frontier_vs,y=frontier_rs,
+                         mode='lines',name='Frontier'),
+              row=1,col=1)
 
-fig.add_trace(go.Scatter(x=[v_mv], y=[r_mv],
-                         mode='markers', name='Min Var'), row=1, col=1)
+fig.add_trace(go.Scatter(x=[v_mv],y=[r_mv],
+                         mode='markers',name='MinVar'),
+              row=1,col=1)
 
-fig.add_trace(go.Scatter(x=[v_ms], y=[r_ms],
-                         mode='markers', name='Tangency'), row=1, col=1)
+fig.add_trace(go.Scatter(x=[v_ms],y=[r_ms],
+                         mode='markers',name='Tangency'),
+              row=1,col=1)
 
 # CML
-cml_x = np.linspace(0, max(frontier_vs), 50)
-cml_y = rf + sharpe * cml_x
-fig.add_trace(go.Scatter(x=cml_x, y=cml_y,
+cml_x = np.linspace(0,max(frontier_vs),50)
+cml_y = rf + sharpe*cml_x
+fig.add_trace(go.Scatter(x=cml_x,y=cml_y,
                          line=dict(dash='dash'),
-                         name='CML'), row=1, col=1)
+                         name='CML'),
+              row=1,col=1)
 
 # weights
 sel_idx = len(frontier_ws)//2
-weights = pd.Series(frontier_ws[sel_idx], index=tickers)\
+weights = pd.Series(frontier_ws[sel_idx],index=tickers)\
             .sort_values(ascending=False)\
             .head(top_hold)
 
-fig.add_trace(go.Bar(x=weights.index, y=weights.values),
-              row=1, col=2)
+fig.add_trace(go.Bar(x=weights.index,y=weights.values),
+              row=1,col=2)
 
-st.plotly_chart(fig, use_container_width=True)
+st.plotly_chart(fig,use_container_width=True)
 
 # ===============================
-# FRONTIER SELECTION
+# SLIDER SELECTION
 # ===============================
 idx = st.slider("Select frontier portfolio",
-                0, len(frontier_ws)-1, sel_idx)
+                0,len(frontier_ws)-1,sel_idx)
 
 st.dataframe(
-    pd.Series(frontier_ws[idx], index=tickers)
+    pd.Series(frontier_ws[idx],index=tickers)
       .sort_values(ascending=False)
       .head(top_hold)
       .to_frame("Weight")
