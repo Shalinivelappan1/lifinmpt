@@ -62,11 +62,13 @@ mu_daily = returns.mean()
 mu = mu_daily * trading_days
 
 # ===== Geometric Annual Return (CAGR) =====
-total_years = (prices.index[-1] - prices.index[0]).days / 365.25
+clean_prices = prices[tickers].dropna()
 
-cagr = (prices.iloc[-1] / prices.iloc[0]) ** (1 / total_years) - 1
+total_years = (clean_prices.index[-1] - clean_prices.index[0]).days / 365.25
 
-geo_vec = cagr.loc[tickers].values
+cagr = (clean_prices.iloc[-1] / clean_prices.iloc[0]) ** (1 / total_years) - 1
+
+geo_vec = cagr.values
 
 # ===============================
 # COVARIANCE MATRIX (Ledoit-Wolf)
