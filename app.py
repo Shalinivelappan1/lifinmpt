@@ -206,34 +206,168 @@ fig.update_yaxes(title_text="Expected Return (μ)", row=1, col=1)
 st.plotly_chart(fig, use_container_width=True)
 
 # =====================================================
-# LEARNING PANEL
+# =====================================================
+# 📚 LEARNING PANEL — FULL THEORY + EXPLANATION
 # =====================================================
 st.divider()
-st.header("📚 How the Portfolio Math Works")
+st.header("📚 Understanding the Mathematics Behind the Portfolio")
 
-with st.expander("Returns"):
+st.write("""
+This section explains how returns, risk, variance, covariance,
+correlation, and portfolio diversification are calculated.
+""")
+
+# =====================================================
+# RETURNS
+# =====================================================
+with st.expander("1️⃣ Returns — What are we measuring?"):
+
+    st.write("""
+A return measures how much an asset’s price changes from one period to the next.
+It tells us how much we gained or lost relative to the previous price.
+""")
+
     st.latex(r"R_t = \frac{P_t - P_{t-1}}{P_{t-1}}")
+
+    st.write("""
+Arithmetic return is the simple average return.
+It is used in Markowitz optimisation.
+""")
+
     st.latex(r"E[R] = \bar{R} \times \text{periods per year}")
-    st.latex(r"CAGR = \left(\frac{P_T}{P_0}\right)^{1/T} - 1")
-    st.write("Arithmetic return is used in optimisation. CAGR is real investor return.")
 
-with st.expander("Volatility"):
+    st.write("""
+Geometric return (CAGR) measures compounded growth.
+It reflects what investors actually earn over time.
+""")
+
+    st.latex(r"CAGR = \left(\frac{P_T}{P_0}\right)^{\frac{1}{T}} - 1")
+
+
+# =====================================================
+# VOLATILITY
+# =====================================================
+with st.expander("2️⃣ Volatility — How do we measure risk?"):
+
+    st.write("""
+Volatility measures how much returns fluctuate around their average.
+Higher volatility means higher uncertainty and therefore higher risk.
+""")
+
+    st.write("Volatility is the square root of variance:")
+
     st.latex(r"\sigma = \sqrt{Var(R)}")
-    st.latex(r"\sigma_{annual} = \sigma_{period}\sqrt{\text{periods per year}}")
-    vol = returns.std()*np.sqrt(periods_per_year)
-    st.dataframe(vol.to_frame("Volatility"))
 
-with st.expander("Variance & Covariance"):
-    st.latex(r"\Sigma = Cov(R_i,R_j)")
-    st.latex(r"\sigma_p^2 = w^T\Sigma w")
-    st.dataframe(pd.DataFrame(cov_mat,index=tickers,columns=tickers))
+    st.write("""
+Variance measures the average squared deviation of returns from the mean.
+Squaring ensures negative and positive deviations both increase risk.
+""")
 
-with st.expander("Correlation"):
+    st.write("Annualised volatility scales risk to yearly terms:")
+
+    st.latex(r"\sigma_{annual} = \sigma_{period} \times \sqrt{\text{periods per year}}")
+
+    vol = returns.std() * np.sqrt(periods_per_year)
+
+    st.write("Volatility of each stock in your dataset:")
+    st.dataframe(vol.to_frame("Annual Volatility"))
+
+
+# =====================================================
+# VARIANCE & COVARIANCE
+# =====================================================
+with st.expander("3️⃣ Variance & Covariance — How assets move together"):
+
+    st.write("""
+Variance measures the risk of a single asset.
+
+Covariance measures how two assets move together.
+It is crucial for diversification.
+""")
+
+    st.write("Covariance formula:")
+
+    st.latex(r"Cov(i,j) = E[(R_i - \mu_i)(R_j - \mu_j)]")
+
+    st.write("""
+Interpretation:
+• Positive covariance → assets move together  
+• Negative covariance → assets move in opposite directions  
+• Zero → no linear relationship  
+""")
+
+    st.write("Covariance matrix used in optimisation:")
+
+    st.latex(r"\Sigma = Cov(R_i, R_j)")
+
+    cov_df = pd.DataFrame(cov_mat, index=tickers, columns=tickers)
+    st.dataframe(cov_df.style.format("{:.4f}"))
+
+
+# =====================================================
+# CORRELATION
+# =====================================================
+with st.expander("4️⃣ Correlation — Standardised relationship"):
+
+    st.write("""
+Correlation standardises covariance to lie between -1 and +1.
+It makes relationships easier to interpret.
+""")
+
+    st.latex(r"\rho_{ij} = \frac{Cov(i,j)}{\sigma_i \sigma_j}")
+
+    st.write("""
+Interpretation:
++1  → move perfectly together  
+0   → independent  
+-1  → move perfectly opposite  
+
+Diversification works best when correlations are low or negative.
+""")
+
     corr = returns.corr()
-    st.dataframe(corr)
+    st.write("Correlation matrix:")
+    st.dataframe(corr.style.format("{:.2f}"))
 
-with st.expander("Portfolio formulas"):
-    st.latex(r"R_p = \sum w_iR_i")
-    st.latex(r"\sigma_p = \sqrt{w^T\Sigma w}")
-    st.write("Diversification reduces risk when correlations are low.")
 
+# =====================================================
+# PORTFOLIO RETURN
+# =====================================================
+with st.expander("5️⃣ Portfolio Return — Weighted average"):
+
+    st.write("""
+Portfolio return is simply the weighted average of individual asset returns.
+""")
+
+    st.latex(r"R_p = \sum_{i=1}^{n} w_i R_i")
+
+    st.write("Min-variance portfolio weights:")
+    st.dataframe(pd.Series(w_mv, index=tickers).to_frame("Weight"))
+
+    st.write("Tangency portfolio weights:")
+    st.dataframe(pd.Series(w_ms, index=tickers).to_frame("Weight"))
+
+
+# =====================================================
+# PORTFOLIO RISK
+# =====================================================
+with st.expander("6️⃣ Portfolio Risk — Why diversification works"):
+
+    st.write("""
+Portfolio risk depends not only on individual volatility,
+but also on how assets move together.
+""")
+
+    st.latex(r"\sigma_p^2 = w^T \Sigma w")
+
+    st.write("Portfolio volatility:")
+
+    st.latex(r"\sigma_p = \sqrt{w^T \Sigma w}")
+
+    st.write("""
+If correlations are low, portfolio risk falls.
+
+This is the core insight of Markowitz:
+You don't need the best stock —
+you need the best combination of stocks.
+""")
