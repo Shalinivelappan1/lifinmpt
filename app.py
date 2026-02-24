@@ -61,9 +61,12 @@ n = len(tickers)
 mu_daily = returns.mean()
 mu = mu_daily * trading_days
 
-# Geometric mean (for interpretation)
-log_returns = np.log(prices / prices.shift(1)).dropna()
-geo_mu = np.exp(log_returns.mean() * trading_days) - 1
+# ===== Geometric Annual Return (CAGR) =====
+total_years = (prices.index[-1] - prices.index[0]).days / 365.25
+
+cagr = (prices.iloc[-1] / prices.iloc[0]) ** (1 / total_years) - 1
+
+geo_vec = cagr.loc[tickers].values
 
 # ===============================
 # COVARIANCE MATRIX (Ledoit-Wolf)
