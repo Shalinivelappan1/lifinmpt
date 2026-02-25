@@ -208,28 +208,127 @@ u2.metric("Volatility",f"{v_util:.2%}")
 u3.metric("Sharpe",f"{(r_util-rf)/v_util:.2f}")
 
 # =====================================================
-# PLOT
 # =====================================================
-fig = make_subplots(rows=1, cols=2,
-                    column_widths=[0.6,0.4],
-                    specs=[[{"type":"scatter"},{"type":"bar"}]])
+# PLOT (Enhanced Visual Version)
+# =====================================================
+fig = make_subplots(
+    rows=1,
+    cols=2,
+    column_widths=[0.65, 0.35],
+    specs=[[{"type": "scatter"}, {"type": "bar"}]]
+)
 
-fig.add_trace(go.Scatter(x=frontier_vs,y=frontier_rs,mode='lines',name='Efficient Frontier'),row=1,col=1)
-fig.add_trace(go.Scatter(x=[v_mv],y=[r_mv],mode='markers',name='Min Var'),row=1,col=1)
-fig.add_trace(go.Scatter(x=[v_ms],y=[r_ms],mode='markers',name='Tangency'),row=1,col=1)
-fig.add_trace(go.Scatter(x=[v_selected],y=[r_selected],mode='markers',name='Selected'),row=1,col=1)
-fig.add_trace(go.Scatter(x=[v_util],y=[r_util],mode='markers',
-                         marker=dict(size=16,symbol="star",color="gold"),
-                         name='Utility Optimal'),row=1,col=1)
+# Efficient Frontier
+fig.add_trace(
+    go.Scatter(
+        x=frontier_vs,
+        y=frontier_rs,
+        mode='lines',
+        line=dict(width=3),
+        name='Efficient Frontier'
+    ),
+    row=1, col=1
+)
 
-fig.add_trace(go.Scatter(x=sigma_curve,y=indiff_curve,
-                         mode='lines',line=dict(dash='dot'),
-                         name='Indifference Curve'),row=1,col=1)
+# Min Variance
+fig.add_trace(
+    go.Scatter(
+        x=[v_mv],
+        y=[r_mv],
+        mode='markers',
+        marker=dict(size=10),
+        name='Minimum Variance'
+    ),
+    row=1, col=1
+)
 
-weights = pd.Series(w_selected,index=tickers).sort_values(ascending=False).head(top_hold)
-fig.add_trace(go.Bar(x=weights.index,y=weights.values),row=1,col=2)
+# Tangency
+fig.add_trace(
+    go.Scatter(
+        x=[v_ms],
+        y=[r_ms],
+        mode='markers',
+        marker=dict(size=10),
+        name='Tangency Portfolio'
+    ),
+    row=1, col=1
+)
 
-st.plotly_chart(fig,use_container_width=True)
+# Selected Portfolio
+fig.add_trace(
+    go.Scatter(
+        x=[v_selected],
+        y=[r_selected],
+        mode='markers',
+        marker=dict(size=12),
+        name='Selected Portfolio'
+    ),
+    row=1, col=1
+)
+
+# Utility Optimal (Highlighted Star)
+fig.add_trace(
+    go.Scatter(
+        x=[v_util],
+        y=[r_util],
+        mode='markers',
+        marker=dict(size=18, symbol="star"),
+        name='Utility Optimal'
+    ),
+    row=1, col=1
+)
+
+# Indifference Curve
+fig.add_trace(
+    go.Scatter(
+        x=sigma_curve,
+        y=indiff_curve,
+        mode='lines',
+        line=dict(dash='dot', width=2),
+        name='Indifference Curve'
+    ),
+    row=1, col=1
+)
+
+# Capital Market Line
+sharpe = (r_ms - rf) / v_ms
+cml_x = np.linspace(0, max(frontier_vs)*1.1, 100)
+cml_y = rf + sharpe * cml_x
+
+fig.add_trace(
+    go.Scatter(
+        x=cml_x,
+        y=cml_y,
+        line=dict(dash='dash'),
+        name='Capital Market Line'
+    ),
+    row=1, col=1
+)
+
+# Bar Chart
+weights = pd.Series(w_selected, index=tickers)\
+    .sort_values(ascending=False)\
+    .head(top_hold)
+
+fig.add_trace(
+    go.Bar(
+        x=weights.index,
+        y=weights.values
+    ),
+    row=1, col=2
+)
+
+# Axis labels
+fig.update_xaxes(title_text="Volatility (σ)", row=1, col=1)
+fig.update_yaxes(title_text="Expected Return (μ)", row=1, col=1)
+
+# Smooth animation effect
+fig.update_layout(
+    transition_duration=500,
+    hovermode="closest"
+)
+
+st.plotly_chart(fig, use_container_width=True)
 
 # =====================================================
 # LEARNING PANEL (FULL PRESERVED + ADDED)
