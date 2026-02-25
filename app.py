@@ -144,23 +144,27 @@ for t in targets:
         frontier_vs.append(port_vol(w))
 
 # =====================================================
+# =====================================================
 # FRONTIER SLIDER
 # =====================================================
 st.sidebar.subheader("Select Portfolio on Frontier")
 
 if len(frontier_ws) > 0:
+
     sel_idx = st.sidebar.slider(
         "Move along Efficient Frontier",
         0,
         len(frontier_ws) - 1,
         len(frontier_ws) // 2
     )
-else:
-    sel_idx = 0
 
-w_selected = frontier_ws[sel_idx]
-r_selected = frontier_rs[sel_idx]
-v_selected = frontier_vs[sel_idx]
+    w_selected = frontier_ws[sel_idx]
+    r_selected = frontier_rs[sel_idx]
+    v_selected = frontier_vs[sel_idx]
+
+else:
+    st.warning("Efficient frontier could not be computed.")
+    st.stop()
 
 # =====================================================
 # DISPLAY RESULTS
@@ -180,6 +184,21 @@ with col2:
     st.metric("Return (Geometric)", f"{geo_r_ms:.2%}")
     st.metric("Volatility", f"{v_ms:.2%}")
     st.metric("Sharpe Ratio", f"{sharpe:.2f}")
+# =====================================================
+# 🎯 SELECTED FRONTIER PORTFOLIO METRICS
+# =====================================================
+st.divider()
+st.subheader("🎯 Selected Frontier Portfolio")
+
+geo_r_sel = float(w_selected @ geo_vec)
+sharpe_sel = (r_selected - rf) / v_selected if v_selected > 0 else 0
+
+c1, c2, c3, c4 = st.columns(4)
+
+c1.metric("Return (Arithmetic)", f"{r_selected:.2%}")
+c2.metric("Return (Geometric)", f"{geo_r_sel:.2%}")
+c3.metric("Volatility", f"{v_selected:.2%}")
+c4.metric("Sharpe Ratio", f"{sharpe_sel:.2f}")   
 
 # =====================================================
 # PLOT
