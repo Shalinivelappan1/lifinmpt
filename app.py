@@ -145,19 +145,58 @@ for t in targets:
 
 # =====================================================
 # =====================================================
-# FRONTIER SLIDER
+# FRONTIER SELECTION — INVESTOR TYPES
 # =====================================================
 st.sidebar.subheader("Select Portfolio on Frontier")
 
 if len(frontier_ws) > 0:
 
-    sel_idx = st.sidebar.slider(
-        "Move along Efficient Frontier",
-        0,
-        len(frontier_ws) - 1,
-        len(frontier_ws) // 2
+    investor = st.sidebar.radio(
+        "Investor Style",
+        [
+            "Manual slider",
+            "🛡 Conservative",
+            "⚖ Balanced",
+            "🚀 Aggressive",
+            "⭐ Max Sharpe",
+            "🌍 Minimum Variance"
+        ]
     )
 
+    # ---- MANUAL ----
+    if investor == "Manual slider":
+        sel_idx = st.sidebar.slider(
+            "Move along Efficient Frontier",
+            0,
+            len(frontier_ws) - 1,
+            len(frontier_ws) // 2
+        )
+
+    # ---- CONSERVATIVE ----
+    elif investor == "🛡 Conservative":
+        sel_idx = int(len(frontier_ws) * 0.20)
+
+    # ---- BALANCED ----
+    elif investor == "⚖ Balanced":
+        sel_idx = int(len(frontier_ws) * 0.50)
+
+    # ---- AGGRESSIVE ----
+    elif investor == "🚀 Aggressive":
+        sel_idx = int(len(frontier_ws) * 0.80)
+
+    # ---- MAX SHARPE ----
+    elif investor == "⭐ Max Sharpe":
+        sharpe_list = [
+            (r - rf) / v if v > 0 else 0
+            for r, v in zip(frontier_rs, frontier_vs)
+        ]
+        sel_idx = int(np.argmax(sharpe_list))
+
+    # ---- MIN VAR ----
+    elif investor == "🌍 Minimum Variance":
+        sel_idx = int(np.argmin(frontier_vs))
+
+    # selected portfolio
     w_selected = frontier_ws[sel_idx]
     r_selected = frontier_rs[sel_idx]
     v_selected = frontier_vs[sel_idx]
