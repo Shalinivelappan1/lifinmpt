@@ -144,7 +144,6 @@ for t in targets:
         frontier_vs.append(port_vol(w))
 
 # =====================================================
-# =====================================================
 # FRONTIER SELECTION — INVESTOR TYPES
 # =====================================================
 st.sidebar.subheader("Select Portfolio on Frontier")
@@ -163,7 +162,9 @@ if len(frontier_ws) > 0:
         ]
     )
 
-    # ---- MANUAL ----
+    vol_array = np.array(frontier_vs)
+    sorted_idx = np.argsort(vol_array)
+
     if investor == "Manual slider":
         sel_idx = st.sidebar.slider(
             "Move along Efficient Frontier",
@@ -172,31 +173,22 @@ if len(frontier_ws) > 0:
             len(frontier_ws) // 2
         )
 
-    # ---- CONSERVATIVE ----
     elif investor == "🛡 Conservative":
-        sel_idx = int(len(frontier_ws) * 0.20)
+        sel_idx = sorted_idx[int(len(sorted_idx) * 0.20)]
 
-    # ---- BALANCED ----
     elif investor == "⚖ Balanced":
-        sel_idx = int(len(frontier_ws) * 0.50)
+        sel_idx = sorted_idx[int(len(sorted_idx) * 0.50)]
 
-    # ---- AGGRESSIVE ----
     elif investor == "🚀 Aggressive":
-        sel_idx = int(len(frontier_ws) * 0.80)
+        sel_idx = sorted_idx[int(len(sorted_idx) * 0.80)]
 
-    # ---- MAX SHARPE ----
     elif investor == "⭐ Max Sharpe":
-        sharpe_list = [
-            (r - rf) / v if v > 0 else 0
-            for r, v in zip(frontier_rs, frontier_vs)
-        ]
+        sharpe_list = [(r - rf) / v if v > 0 else 0 for r, v in zip(frontier_rs, frontier_vs)]
         sel_idx = int(np.argmax(sharpe_list))
 
-    # ---- MIN VAR ----
     elif investor == "🌍 Minimum Variance":
         sel_idx = int(np.argmin(frontier_vs))
 
-    # selected portfolio
     w_selected = frontier_ws[sel_idx]
     r_selected = frontier_rs[sel_idx]
     v_selected = frontier_vs[sel_idx]
@@ -223,8 +215,9 @@ with col2:
     st.metric("Return (Geometric)", f"{geo_r_ms:.2%}")
     st.metric("Volatility", f"{v_ms:.2%}")
     st.metric("Sharpe Ratio", f"{sharpe:.2f}")
+
 # =====================================================
-# 🎯 SELECTED FRONTIER PORTFOLIO METRICS
+# SELECTED FRONTIER METRICS
 # =====================================================
 st.divider()
 st.subheader("🎯 Selected Frontier Portfolio")
@@ -233,11 +226,10 @@ geo_r_sel = float(w_selected @ geo_vec)
 sharpe_sel = (r_selected - rf) / v_selected if v_selected > 0 else 0
 
 c1, c2, c3, c4 = st.columns(4)
-
 c1.metric("Return (Arithmetic)", f"{r_selected:.2%}")
 c2.metric("Return (Geometric)", f"{geo_r_sel:.2%}")
 c3.metric("Volatility", f"{v_selected:.2%}")
-c4.metric("Sharpe Ratio", f"{sharpe_sel:.2f}")   
+c4.metric("Sharpe Ratio", f"{sharpe_sel:.2f}")
 
 # =====================================================
 # PLOT
@@ -311,7 +303,7 @@ with colC:
                  .to_frame("Weight"))
 
 # =====================================================
-# 📚 LEARNING PANEL (UNCHANGED — FULLY PRESERVED)
+# 📚 LEARNING PANEL (UNCHANGED)
 # =====================================================
 st.divider()
 st.header("📚 Understanding the Mathematics Behind the Portfolio")
