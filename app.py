@@ -333,14 +333,137 @@ st.plotly_chart(fig, use_container_width=True)
 # =====================================================
 # LEARNING PANEL (FULL PRESERVED + ADDED)
 # =====================================================
+# =====================================================
+# 📚 LEARNING PANEL — FULL THEORY + EXPLANATION
+# =====================================================
 st.divider()
 st.header("📚 Understanding the Mathematics Behind the Portfolio")
 
-with st.expander("Investor Utility & Risk Aversion"):
+st.write("""
+This section explains how returns, risk, variance, covariance,
+correlation, portfolio diversification, and investor preferences are calculated.
+""")
+
+# =====================================================
+# RETURNS
+# =====================================================
+with st.expander("1️⃣ Returns — What are we measuring?"):
+
+    st.write("""
+A return measures how much an asset’s price changes from one period to the next.
+It tells us how much we gained or lost relative to the previous price.
+""")
+
+    st.latex(r"R_t = \frac{P_t - P_{t-1}}{P_{t-1}}")
+
+    st.write("""
+Arithmetic return is the simple average return.
+It is used in Markowitz optimisation.
+""")
+
+    st.latex(r"E[R] = \bar{R} \times \text{periods per year}")
+
+    st.write("""
+Geometric return (CAGR) measures compounded growth.
+It reflects what investors actually earn over time.
+""")
+
+    st.latex(r"CAGR = \left(\frac{P_T}{P_0}\right)^{\frac{1}{T}} - 1")
+
+
+# =====================================================
+# VOLATILITY
+# =====================================================
+with st.expander("2️⃣ Volatility — How do we measure risk?"):
+
+    st.write("""
+Volatility measures how much returns fluctuate around their average.
+Higher volatility means higher uncertainty and therefore higher risk.
+""")
+
+    st.latex(r"\sigma = \sqrt{Var(R)}")
+
+    st.write("Annualised volatility scales risk to yearly terms:")
+
+    st.latex(r"\sigma_{annual} = \sigma_{period} \times \sqrt{\text{periods per year}}")
+
+    vol = returns.std() * np.sqrt(periods_per_year)
+    st.dataframe(vol.to_frame("Annual Volatility"))
+
+
+# =====================================================
+# VARIANCE & COVARIANCE
+# =====================================================
+with st.expander("3️⃣ Variance & Covariance — How assets move together"):
+
+    st.write("""
+Variance measures the risk of a single asset.
+
+Covariance measures how two assets move together.
+It is crucial for diversification.
+""")
+
+    st.latex(r"Cov(i,j) = E[(R_i - \mu_i)(R_j - \mu_j)]")
+
+    st.latex(r"\Sigma = Cov(R_i, R_j)")
+
+    cov_df = pd.DataFrame(cov_mat, index=tickers, columns=tickers)
+    st.dataframe(cov_df.style.format("{:.4f}"))
+
+
+# =====================================================
+# CORRELATION
+# =====================================================
+with st.expander("4️⃣ Correlation — Standardised relationship"):
+
+    st.latex(r"\rho_{ij} = \frac{Cov(i,j)}{\sigma_i \sigma_j}")
+
+    corr = returns.corr()
+    st.dataframe(corr.style.format("{:.2f}"))
+
+
+# =====================================================
+# PORTFOLIO RETURN
+# =====================================================
+with st.expander("5️⃣ Portfolio Return — Weighted average"):
+
+    st.latex(r"R_p = \sum_{i=1}^{n} w_i R_i")
+
+    st.write("Min-variance portfolio weights:")
+    st.dataframe(pd.Series(w_mv, index=tickers).to_frame("Weight"))
+
+    st.write("Tangency portfolio weights:")
+    st.dataframe(pd.Series(w_ms, index=tickers).to_frame("Weight"))
+
+
+# =====================================================
+# PORTFOLIO RISK
+# =====================================================
+with st.expander("6️⃣ Portfolio Risk — Why diversification works"):
+
+    st.latex(r"\sigma_p^2 = w^T \Sigma w")
+
+    st.latex(r"\sigma_p = \sqrt{w^T \Sigma w}")
+
+    st.write("""
+Portfolio risk depends not only on individual volatility,
+but also on how assets move together.
+""")
+
+
+# =====================================================
+# UTILITY & RISK AVERSION
+# =====================================================
+with st.expander("7️⃣ Investor Utility & Risk Aversion — Choosing the Optimal Portfolio"):
+
     st.latex(r"U = E(R_p) - \frac{1}{2}A\sigma_p^2")
+
     st.write("""
 Risk aversion determines where an investor chooses on the efficient frontier.
 
 Higher A → more conservative  
-Lower A → more aggressive
+Lower A → more aggressive  
+
+The optimal portfolio is the one that maximises utility.
+This explains why different investors choose different portfolios.
 """)
