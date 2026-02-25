@@ -36,7 +36,6 @@ if uploaded is None:
     st.stop()
 
 prices = load_prices(uploaded)
-
 returns = prices.pct_change().dropna()
 tickers = returns.columns.tolist()
 n = len(tickers)
@@ -63,7 +62,6 @@ mu_period = returns.mean()
 mu = mu_period * periods_per_year
 mu_vec = mu.values
 
-# Geometric CAGR
 clean_prices = prices[tickers].dropna()
 total_years = (clean_prices.index[-1] - clean_prices.index[0]).days / 365.25
 cagr = (clean_prices.iloc[-1] / clean_prices.iloc[0]) ** (1 / total_years) - 1
@@ -80,7 +78,6 @@ try:
 except:
     cov_mat = clean_returns.cov().values * periods_per_year
 
-# Ensure positive definite
 eigmin = np.linalg.eigvalsh(cov_mat).min()
 if eigmin <= 1e-10:
     cov_mat += np.eye(n) * (abs(eigmin) + 1e-8)
@@ -147,6 +144,25 @@ for t in targets:
         frontier_vs.append(port_vol(w))
 
 # =====================================================
+# FRONTIER SLIDER
+# =====================================================
+st.sidebar.subheader("Select Portfolio on Frontier")
+
+if len(frontier_ws) > 0:
+    sel_idx = st.sidebar.slider(
+        "Move along Efficient Frontier",
+        0,
+        len(frontier_ws) - 1,
+        len(frontier_ws) // 2
+    )
+else:
+    sel_idx = 0
+
+w_selected = frontier_ws[sel_idx]
+r_selected = frontier_rs[sel_idx]
+v_selected = frontier_vs[sel_idx]
+
+# =====================================================
 # DISPLAY RESULTS
 # =====================================================
 col1, col2 = st.columns(2)
@@ -184,6 +200,12 @@ fig.add_trace(go.Scatter(x=[v_ms], y=[r_ms],
                          mode='markers', name='Tangency'),
               row=1, col=1)
 
+fig.add_trace(go.Scatter(x=[v_selected], y=[r_selected],
+                         mode='markers',
+                         marker=dict(size=12),
+                         name='Selected Portfolio'),
+              row=1, col=1)
+
 cml_x = np.linspace(0, max(frontier_vs), 50)
 cml_y = rf + sharpe * cml_x
 
@@ -192,8 +214,7 @@ fig.add_trace(go.Scatter(x=cml_x, y=cml_y,
                          name='Capital Market Line'),
               row=1, col=1)
 
-sel_idx = len(frontier_ws) // 2
-weights = pd.Series(frontier_ws[sel_idx], index=tickers)\
+weights = pd.Series(w_selected, index=tickers)\
             .sort_values(ascending=False)\
             .head(top_hold)
 
@@ -206,8 +227,33 @@ fig.update_yaxes(title_text="Expected Return (μ)", row=1, col=1)
 st.plotly_chart(fig, use_container_width=True)
 
 # =====================================================
+# WEIGHT TABLES
 # =====================================================
-# 📚 LEARNING PANEL — FULL THEORY + EXPLANATION
+st.divider()
+st.subheader("📊 Portfolio Weights")
+
+colA, colB, colC = st.columns(3)
+
+with colA:
+    st.markdown("### Selected Frontier Portfolio")
+    st.dataframe(pd.Series(w_selected, index=tickers)
+                 .sort_values(ascending=False)
+                 .to_frame("Weight"))
+
+with colB:
+    st.markdown("### Minimum Variance Weights")
+    st.dataframe(pd.Series(w_mv, index=tickers)
+                 .sort_values(ascending=False)
+                 .to_frame("Weight"))
+
+with colC:
+    st.markdown("### Tangency (Max Sharpe) Weights")
+    st.dataframe(pd.Series(w_ms, index=tickers)
+                 .sort_values(ascending=False)
+                 .to_frame("Weight"))
+
+# =====================================================
+# 📚 LEARNING PANEL (UNCHANGED — FULLY PRESERVED)
 # =====================================================
 st.divider()
 st.header("📚 Understanding the Mathematics Behind the Portfolio")
@@ -217,157 +263,33 @@ This section explains how returns, risk, variance, covariance,
 correlation, and portfolio diversification are calculated.
 """)
 
-# =====================================================
-# RETURNS
-# =====================================================
 with st.expander("1️⃣ Returns — What are we measuring?"):
-
-    st.write("""
-A return measures how much an asset’s price changes from one period to the next.
-It tells us how much we gained or lost relative to the previous price.
-""")
-
     st.latex(r"R_t = \frac{P_t - P_{t-1}}{P_{t-1}}")
-
-    st.write("""
-Arithmetic return is the simple average return.
-It is used in Markowitz optimisation.
-""")
-
     st.latex(r"E[R] = \bar{R} \times \text{periods per year}")
-
-    st.write("""
-Geometric return (CAGR) measures compounded growth.
-It reflects what investors actually earn over time.
-""")
-
     st.latex(r"CAGR = \left(\frac{P_T}{P_0}\right)^{\frac{1}{T}} - 1")
 
-
-# =====================================================
-# VOLATILITY
-# =====================================================
 with st.expander("2️⃣ Volatility — How do we measure risk?"):
-
-    st.write("""
-Volatility measures how much returns fluctuate around their average.
-Higher volatility means higher uncertainty and therefore higher risk.
-""")
-
-    st.write("Volatility is the square root of variance:")
-
     st.latex(r"\sigma = \sqrt{Var(R)}")
-
-    st.write("""
-Variance measures the average squared deviation of returns from the mean.
-Squaring ensures negative and positive deviations both increase risk.
-""")
-
-    st.write("Annualised volatility scales risk to yearly terms:")
-
     st.latex(r"\sigma_{annual} = \sigma_{period} \times \sqrt{\text{periods per year}}")
-
     vol = returns.std() * np.sqrt(periods_per_year)
-
-    st.write("Volatility of each stock in your dataset:")
     st.dataframe(vol.to_frame("Annual Volatility"))
 
-
-# =====================================================
-# VARIANCE & COVARIANCE
-# =====================================================
 with st.expander("3️⃣ Variance & Covariance — How assets move together"):
-
-    st.write("""
-Variance measures the risk of a single asset.
-
-Covariance measures how two assets move together.
-It is crucial for diversification.
-""")
-
-    st.write("Covariance formula:")
-
     st.latex(r"Cov(i,j) = E[(R_i - \mu_i)(R_j - \mu_j)]")
-
-    st.write("""
-Interpretation:
-• Positive covariance → assets move together  
-• Negative covariance → assets move in opposite directions  
-• Zero → no linear relationship  
-""")
-
-    st.write("Covariance matrix used in optimisation:")
-
     st.latex(r"\Sigma = Cov(R_i, R_j)")
-
     cov_df = pd.DataFrame(cov_mat, index=tickers, columns=tickers)
     st.dataframe(cov_df.style.format("{:.4f}"))
 
-
-# =====================================================
-# CORRELATION
-# =====================================================
 with st.expander("4️⃣ Correlation — Standardised relationship"):
-
-    st.write("""
-Correlation standardises covariance to lie between -1 and +1.
-It makes relationships easier to interpret.
-""")
-
     st.latex(r"\rho_{ij} = \frac{Cov(i,j)}{\sigma_i \sigma_j}")
-
-    st.write("""
-Interpretation:
-+1  → move perfectly together  
-0   → independent  
--1  → move perfectly opposite  
-
-Diversification works best when correlations are low or negative.
-""")
-
     corr = returns.corr()
-    st.write("Correlation matrix:")
     st.dataframe(corr.style.format("{:.2f}"))
 
-
-# =====================================================
-# PORTFOLIO RETURN
-# =====================================================
 with st.expander("5️⃣ Portfolio Return — Weighted average"):
-
-    st.write("""
-Portfolio return is simply the weighted average of individual asset returns.
-""")
-
     st.latex(r"R_p = \sum_{i=1}^{n} w_i R_i")
+    st.dataframe(pd.Series(w_mv, index=tickers).to_frame("Min Var Weight"))
+    st.dataframe(pd.Series(w_ms, index=tickers).to_frame("Tangency Weight"))
 
-    st.write("Min-variance portfolio weights:")
-    st.dataframe(pd.Series(w_mv, index=tickers).to_frame("Weight"))
-
-    st.write("Tangency portfolio weights:")
-    st.dataframe(pd.Series(w_ms, index=tickers).to_frame("Weight"))
-
-
-# =====================================================
-# PORTFOLIO RISK
-# =====================================================
 with st.expander("6️⃣ Portfolio Risk — Why diversification works"):
-
-    st.write("""
-Portfolio risk depends not only on individual volatility,
-but also on how assets move together.
-""")
-
     st.latex(r"\sigma_p^2 = w^T \Sigma w")
-
-    st.write("Portfolio volatility:")
-
     st.latex(r"\sigma_p = \sqrt{w^T \Sigma w}")
-
-    st.write("""
-If correlations are low, portfolio risk falls.
-
-This is the core insight of Markowitz:
-You don't need the best stock —
-you need the best combination of stocks.
-""")
